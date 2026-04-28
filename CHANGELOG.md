@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- CRUD completo de sucursales: `GET /branches`, `GET /branches/{id}`, `POST /branches`, `PATCH /branches/{id}`, `DELETE /branches/{id}`
+- Schemas `BranchCreate` y `BranchUpdate` agregados a `schemas/branch.py`
+- Delete es soft delete (desactiva `is_active`), write operations requieren rol `admin`
+
 ## [0.2.0] - 2026-04-28
 
 ### Added
