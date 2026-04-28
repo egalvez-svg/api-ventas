@@ -2,23 +2,23 @@ from fastapi import HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.base import User
+from app.core.deps import AuthContext
 from app.models.sales import Table
 from app.schemas.sales import TableCreate, TableRead, TableUpdate
 
 
 class TableService:
-    def _assert_branch_access(self, user: User, branch_id: int) -> None:
+    def _assert_branch_access(self, user: AuthContext, branch_id: int) -> None:
         if user.role != "admin" and user.branch_id != branch_id:
             raise HTTPException(status_code=403, detail="Access denied for this branch")
 
-    async def list(self, session: AsyncSession, branch_id: int, user: User) -> list[TableRead]:
+    async def list(self, session: AsyncSession, branch_id: int, user: AuthContext) -> list[TableRead]:
         self._assert_branch_access(user, branch_id)
         result = await session.exec(select(Table).where(Table.branch_id == branch_id))
         return [TableRead.model_validate(t) for t in result.all()]
 
     async def create(
-        self, session: AsyncSession, branch_id: int, data: TableCreate, user: User
+        self, session: AsyncSession, branch_id: int, data: TableCreate, user: AuthContext
     ) -> TableRead:
         self._assert_branch_access(user, branch_id)
         table = Table(branch_id=branch_id, **data.model_dump())
@@ -33,7 +33,7 @@ class TableService:
         branch_id: int,
         table_id: int,
         data: TableUpdate,
-        user: User,
+        user: AuthContext,
     ) -> TableRead:
         self._assert_branch_access(user, branch_id)
         table = await session.get(Table, table_id)
@@ -47,7 +47,7 @@ class TableService:
         return TableRead.model_validate(table)
 
     async def delete(
-        self, session: AsyncSession, branch_id: int, table_id: int, user: User
+        self, session: AsyncSession, branch_id: int, table_id: int, user: AuthContext
     ) -> None:
         self._assert_branch_access(user, branch_id)
         table = await session.get(Table, table_id)

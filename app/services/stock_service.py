@@ -3,14 +3,14 @@ from fastapi import HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.base import User
+from app.core.deps import AuthContext
 from app.models.inventory import BranchStock, Ingredient, Recipe
 from app.models.sales import OrderItem, OrderItemExtra
 from app.schemas.inventory import BranchStockRead, BranchStockUpdate
 
 
 class StockService:
-    def _assert_branch_access(self, user: User, branch_id: int) -> None:
+    def _assert_branch_access(self, user: AuthContext, branch_id: int) -> None:
         if user.role != "admin" and user.branch_id != branch_id:
             raise HTTPException(status_code=403, detail="Access denied for this branch")
 
@@ -27,7 +27,7 @@ class StockService:
         )
 
     async def list(
-        self, session: AsyncSession, branch_id: int, user: User
+        self, session: AsyncSession, branch_id: int, user: AuthContext
     ) -> list[BranchStockRead]:
         self._assert_branch_access(user, branch_id)
         result = await session.exec(
@@ -36,7 +36,7 @@ class StockService:
         return [await self._to_read(session, s) for s in result.all()]
 
     async def list_critical(
-        self, session: AsyncSession, branch_id: int, user: User
+        self, session: AsyncSession, branch_id: int, user: AuthContext
     ) -> list[BranchStockRead]:
         items = await self.list(session, branch_id, user)
         return [item for item in items if item.is_critical]
@@ -47,7 +47,7 @@ class StockService:
         branch_id: int,
         ingredient_id: int,
         data: BranchStockUpdate,
-        user: User,
+        user: AuthContext,
     ) -> BranchStockRead:
         self._assert_branch_access(user, branch_id)
 

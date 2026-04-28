@@ -6,8 +6,8 @@ from jose import JWTError
 from sqlmodel import select
 
 from app.core.deps import CurrentUser, SessionDep
-from app.core.security import create_access_token, decode_access_token, verify_password
-from app.models.base import Branch, User, UserBranchRole
+from app.core.security import create_access_token, decode_access_token, hash_token, verify_password
+from app.models.base import Branch, RefreshToken, User, UserBranchRole
 from app.schemas.auth import BranchOption, RefreshRequest, SelectBranchRequest, Token
 from app.schemas.user import BranchMembershipRead, UserRead
 from app.services.shift_service import (
@@ -164,3 +164,29 @@ async def refresh(body: RefreshRequest, session: SessionDep):
 @router.get("/me", response_model=UserRead)
 async def me(current_user: CurrentUser, session: SessionDep):
     return await _build_user_read(current_user.id, session)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(body: RefreshRequest, session: SessionDep, _: CurrentUser):
+    token_hash = hash_token(body.refresh_token)
+    result = await session.exec(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
+    record = result.first()
+    if record and not record.is_revoked:
+        record.is_revoked = True
+        session.add(record)
+        await session.commit()
+
+
+@router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)
+async def logout_all(current_user: CurrentUser, session: SessionDep):
+    result = await session.exec(
+        select(RefreshToken).where(
+            RefreshToken.user_id == current_user.id,
+            RefreshToken.is_revoked == False,
+        )
+    )
+    tokens = result.all()
+    for token in tokens:
+        token.is_revoked = True
+        session.add(token)
+    await session.commit()
