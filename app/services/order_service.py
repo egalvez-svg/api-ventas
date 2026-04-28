@@ -104,7 +104,20 @@ class OrderService:
             product_prices[item_data.product_id] = product.price
             total += product.price * item_data.quantity
 
-        order = Order(branch_id=branch_id, table_id=data.table_id, user_id=user.id, total=total)
+        from app.services.shift_service import get_active_shift
+        shift = await get_active_shift(branch_id, session)
+        if not shift:
+            raise HTTPException(
+                status_code=400, detail="No active shift found for this branch. Please open a shift first."
+            )
+
+        order = Order(
+            branch_id=branch_id,
+            table_id=data.table_id,
+            user_id=user.id,
+            shift_id=shift.id,
+            total=total,
+        )
         session.add(order)
         await session.flush()
 

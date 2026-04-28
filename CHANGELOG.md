@@ -7,16 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-28
+
 ### Added
-- Shift cash management: open/close shifts with initial/final cash amounts
-- Invoice service for pre-boleta (internal ticket) generation
-- Order service with full order lifecycle management
-- Shift service with branch-scoped cash management
-- Updated order and shift schemas with extended fields
+- Endpoint `GET /api/v1/branches` para listar sucursales activas
+- Schema `BranchRead` para respuesta de sucursales
+- `InvoiceService` con generación de pre-boleta interna (`generate_pre_boleta`)
+- Gestión de turnos de caja: apertura y cierre con montos inicial y final
+- Migración Alembic `add_shift_cash_management` para campos de caja en turnos
 
 ### Changed
-- `app/models/base.py` — extended Branch and User models
-- `app/models/sales.py` — updated Order, OrderItem with shift relation
+- `shift_service.py` — lógica extendida de apertura/cierre de turno con validaciones de caja
+- `order_service.py` — ciclo de vida completo de órdenes con soporte de extras
+- `schemas/shift.py` — campos `initial_cash`, `final_cash` y `cash_difference` agregados
+- `models/base.py` — modelo Branch y User extendidos
+- `models/sales.py` — relación Order → Shift agregada
+- `router.py` — registrado el router de sucursales
 
 ---
 

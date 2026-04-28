@@ -46,3 +46,13 @@ async def update_order_status(
     user: CurrentUser,
 ):
     return await order_service.update_status(session, branch_id, order_id, data, user)
+
+
+@router.get("/{order_id}/invoice", response_model=dict)
+async def get_order_invoice(
+    branch_id: int, order_id: int, session: SessionDep, user: CurrentUser
+):
+    from app.services.invoice_service import invoice_service
+    # Basic check to ensure order belongs to branch
+    order = await order_service.get(session, branch_id, order_id, user)
+    return await invoice_service.generate_pre_boleta(session, order_id)

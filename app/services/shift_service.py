@@ -18,30 +18,44 @@ async def get_active_shift(branch_id: int, session: AsyncSession) -> Shift | Non
     return result.first()
 
 
-async def open_shift(branch_id: int, user_id: int, session: AsyncSession) -> Shift:
+async def open_shift(branch_id: int, user_id: int, initial_cash: float, session: AsyncSession) -> Shift:
     existing = await get_active_shift(branch_id, session)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="There is already an active shift for this branch",
         )
-    shift = Shift(branch_id=branch_id, opened_by=user_id)
+    shift = Shift(branch_id=branch_id, opened_by=user_id, initial_cash=initial_cash)
     session.add(shift)
     await session.commit()
     await session.refresh(shift)
     return shift
 
 
-async def close_shift(branch_id: int, user_id: int, session: AsyncSession) -> Shift:
+async def close_shift(
+    branch_id: int, user_id: int, actual_cash: float, notes: str | None, session: AsyncSession
+) -> Shift:
     shift = await get_active_shift(branch_id, session)
     if not shift:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No active shift found for this branch",
         )
+
+    # Calculate expected cash: initial_cash + sum(paid orders total)
+    from app.models.sales import Order
+    sales_result = await session.exec(
+        select(Order).where(Order.shift_id == shift.id, Order.status == "paid")
+    )
+    total_sales = sum(o.total for o in sales_result.all())
+
     shift.is_active = False
     shift.closed_at = datetime.utcnow()
     shift.closed_by = user_id
+    shift.expected_cash = shift.initial_cash + total_sales
+    shift.actual_cash = actual_cash
+    shift.notes = notes
+
     session.add(shift)
     await session.commit()
     await session.refresh(shift)
