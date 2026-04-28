@@ -84,31 +84,71 @@ JWT tokens must encode the user's `branch_id` and `role` so the API can enforce 
 
 ## Implementation Roadmap
 
-### Phase 1 — Foundation (current)
-- [ ] Configure Alembic and run first migration
-- [ ] `app/core/config.py` — Settings via pydantic-settings (DATABASE_URL, SECRET_KEY, etc.)
-- [ ] `app/core/security.py` — JWT creation/verification encoding `user_id`, `branch_id`, `role`
-- [ ] `app/db/session.py` — SQLModel engine + `get_session` FastAPI dependency
-- [ ] OAuth2 password flow + RBAC middleware for branch isolation
+### Phase 1 — Foundation
+- [x] Configure Alembic and run first migration
+- [x] `app/core/config.py` — Settings via pydantic-settings
+- [x] `app/core/security.py` — JWT creation/verification
+- [x] `app/db/session.py` — SQLModel engine + `get_session`
+- [x] OAuth2 password flow + RBAC middleware
 
 ### Phase 2 — Menu & Inventory API
-- [ ] `app/schemas/` — Request/response Pydantic models (separate from ORM models)
-- [ ] CRUD routers: products, categories, ingredients, recipes
-- [ ] `BranchStock` management endpoints + critical stock alerts
+- [x] `app/schemas/` — Request/response Pydantic models
+- [x] CRUD routers: products, categories, ingredients, recipes
+- [x] `BranchStock` management endpoints + critical stock alerts
+- [x] `Tables` management endpoints
 
 ### Phase 3 — Orders
-- [ ] Order creation and status management routers
-- [ ] Extras support on `OrderItem` (also deduct stock)
-- [ ] Kitchen view: orders filtered by branch in `cooking` status
+- [x] Order creation and status management routers
+- [x] Extras support on `OrderItem` (also deduct stock)
+- [x] Kitchen view: orders filtered by branch in `cooking` status
 
 ### Phase 4 — Invoicing & Reporting
-- [ ] Pre-boleta / internal ticket generation
-- [ ] Branch cash-close logic
+- [x] Pre-boleta / internal ticket generation
+- [x] Branch cash-close logic (Arqueo de caja)
 - [ ] SII DTE mockup (provider-agnostic interface for LibreDTE / OpenFactura)
 
 ### Phase 5 — Admin UI
 - [ ] Refine or React Admin integration
 - [ ] Sales and critical-stock reports
+
+## Commit & Branch Workflow
+
+**These rules are mandatory for every code change in this project.**
+
+### Branch rules
+- **Never commit or push directly to `main`.**
+- Always create a branch before starting work:
+  - `feature/<short-description>` — new functionality
+  - `hotfix/<short-description>` — urgent production fix
+  - `chore/<short-description>` — maintenance, deps, config
+  - `refactor/<short-description>` — code restructuring without behaviour change
+- Open a Pull Request from the branch into `main` when the work is complete.
+
+### Changelog rules
+- **Every commit must include an update to `CHANGELOG.md`** under the `[Unreleased]` section.
+- Follow [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) conventions:
+  - `### Added` — new features or endpoints
+  - `### Changed` — changes to existing behaviour
+  - `### Fixed` — bug fixes
+  - `### Removed` — removed features or code
+  - `### Security` — vulnerability fixes
+- Write entries in Spanish (language used by the team).
+- Each entry should be one line, starting with a verb in past tense (e.g. "Agregado endpoint de cierre de caja").
+- When releasing, rename `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD` and add a new empty `[Unreleased]` section above.
+
+### Git hooks (enforced automatically)
+- `pre-commit` — blocks commits on `main` and warns if `CHANGELOG.md` was not staged.
+- `pre-push` — blocks pushes directly to `main`.
+
+### Commit message format
+Use Conventional Commits:
+```
+<type>(<scope>): <short summary in Spanish>
+
+[optional body]
+```
+Types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `ci`
+Example: `feat(orders): agregar soporte de extras en OrderItem`
 
 ## Environment Variables
 

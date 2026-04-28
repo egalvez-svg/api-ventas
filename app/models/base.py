@@ -45,10 +45,15 @@ class Shift(SQLModel, table=True):
     closed_by: Optional[int] = Field(default=None, foreign_key="user.id")
     opened_at: datetime = Field(default_factory=datetime.utcnow)
     closed_at: Optional[datetime] = Field(default=None)
+    initial_cash: float = Field(default=0.0)
+    expected_cash: float = Field(default=0.0)
+    actual_cash: float = Field(default=0.0)
+    notes: Optional[str] = None
     is_active: bool = Field(default=True)
 
     branch: Optional[Branch] = Relationship(back_populates="shifts", sa_relationship_kwargs={"lazy": "raise"})
     refresh_tokens: List["RefreshToken"] = Relationship(back_populates="shift", sa_relationship_kwargs={"lazy": "raise"})
+    orders: List["Order"] = Relationship(back_populates="shift", sa_relationship_kwargs={"lazy": "raise"})
 
 
 class RefreshToken(SQLModel, table=True):

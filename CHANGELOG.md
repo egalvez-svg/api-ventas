@@ -1,0 +1,43 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.2.0] - 2026-04-28
+
+### Added
+- Endpoint `GET /api/v1/branches` para listar sucursales activas
+- Schema `BranchRead` para respuesta de sucursales
+- `InvoiceService` con generación de pre-boleta interna (`generate_pre_boleta`)
+- Gestión de turnos de caja: apertura y cierre con montos inicial y final
+- Migración Alembic `add_shift_cash_management` para campos de caja en turnos
+
+### Changed
+- `shift_service.py` — lógica extendida de apertura/cierre de turno con validaciones de caja
+- `order_service.py` — ciclo de vida completo de órdenes con soporte de extras
+- `schemas/shift.py` — campos `initial_cash`, `final_cash` y `cash_difference` agregados
+- `models/base.py` — modelo Branch y User extendidos
+- `models/sales.py` — relación Order → Shift agregada
+- `router.py` — registrado el router de sucursales
+
+---
+
+## [0.1.0] - 2025-01-01
+
+### Added
+- Initial project structure with FastAPI + SQLModel
+- Multi-branch architecture (`branch_id` scoping on all data)
+- User model with five roles: `admin`, `manager`, `waiter`, `kitchen`, `cashier`
+- JWT authentication with OAuth2 password flow
+- Database models: Branch, User, Category, Ingredient, Product, Recipe, BranchStock, Table, Order, OrderItem
+- Alembic migrations setup
+- Recipe-based inventory deduction on order payment
+- Kitchen view: orders filtered by branch in `cooking` status
+- CRUD routers: products, categories, ingredients, recipes, tables
+- BranchStock management with critical stock alerts
+- Pre-boleta / internal ticket generation
+- Branch cash-close (arqueo de caja) logic
