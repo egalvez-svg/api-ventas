@@ -94,6 +94,18 @@ async def update_user(user_id: int, user_in: UserUpdate, session: SessionDep, cu
     if user_in.password is not None:
         user.hashed_password = get_password_hash(user_in.password)
 
+    if user_in.memberships is not None:
+        if current_user.role != "admin":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admin can update memberships")
+        existing_memberships = await session.exec(
+            select(UserBranchRole).where(UserBranchRole.user_id == user_id)
+        )
+        for m in existing_memberships.all():
+            await session.delete(m)
+        await session.flush()
+        for m in user_in.memberships:
+            session.add(UserBranchRole(user_id=user_id, branch_id=m.branch_id, role=m.role))
+
     session.add(user)
     await session.commit()
     await session.refresh(user)

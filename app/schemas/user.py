@@ -25,6 +25,7 @@ class UserUpdate(BaseModel):
     email: EmailStr | None = None
     full_name: str | None = None
     password: str | None = None
+    memberships: list[BranchMembershipCreate] | None = None
 
 
 class UserRead(BaseModel):
