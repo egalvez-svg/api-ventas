@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `stock_service.py` y `table_service.py` — type hints de `User` a `AuthContext` en métodos de acceso por sucursal
 
 ### Added
+- `PATCH /users/{id}` para actualizar email, nombre y contraseña (admin o el propio usuario)
+- `DELETE /users/{id}` soft delete de usuario via `is_active=False` (solo admin, no puede desactivarse a sí mismo)
+- Schema `UserUpdate` con campos opcionales
 - Endpoints de logout: `POST /auth/logout` revoca el refresh token actual, `POST /auth/logout-all` revoca todos los tokens del usuario
 - CRUD completo de sucursales: `GET /branches`, `GET /branches/{id}`, `POST /branches`, `PATCH /branches/{id}`, `DELETE /branches/{id}`
 - Schemas `BranchCreate` y `BranchUpdate` agregados a `schemas/branch.py`

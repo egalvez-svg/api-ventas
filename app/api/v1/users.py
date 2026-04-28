@@ -4,7 +4,7 @@ from sqlmodel import select
 from app.core.deps import CurrentUser, SessionDep, require_roles
 from app.core.security import get_password_hash
 from app.models.base import Branch, User, UserBranchRole
-from app.schemas.user import BranchMembershipCreate, BranchMembershipRead, UserCreate, UserRead
+from app.schemas.user import BranchMembershipCreate, BranchMembershipRead, UserCreate, UserRead, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -72,6 +72,48 @@ async def get_user(user_id: int, session: SessionDep, current_user: CurrentUser)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return await _build_user_read(user, session)
+
+
+@router.patch("/{user_id}", response_model=UserRead)
+async def update_user(user_id: int, user_in: UserUpdate, session: SessionDep, current_user: CurrentUser):
+    if current_user.role != "admin" and current_user.id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+
+    user = await session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if user_in.email and user_in.email != user.email:
+        existing = await session.exec(select(User).where(User.email == user_in.email))
+        if existing.first():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        user.email = user_in.email
+
+    if user_in.full_name is not None:
+        user.full_name = user_in.full_name
+    if user_in.password is not None:
+        user.hashed_password = get_password_hash(user_in.password)
+
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return await _build_user_read(user, session)
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def deactivate_user(user_id: int, session: SessionDep, current_user: CurrentUser):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    if current_user.id == user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot deactivate your own account")
+
+    user = await session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user.is_active = False
+    session.add(user)
+    await session.commit()
 
 
 @router.post(

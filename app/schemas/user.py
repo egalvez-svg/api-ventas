@@ -21,6 +21,12 @@ class UserCreate(BaseModel):
     memberships: list[BranchMembershipCreate] = []
 
 
+class UserUpdate(BaseModel):
+    email: EmailStr | None = None
+    full_name: str | None = None
+    password: str | None = None
+
+
 class UserRead(BaseModel):
     id: int
     email: str
