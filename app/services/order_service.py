@@ -1,0 +1,188 @@
+from __future__ import annotations
+from fastapi import HTTPException
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app.models.base import User
+from app.models.inventory import Product
+from app.models.sales import Order, OrderItem, OrderItemExtra, Table
+from app.schemas.sales import (
+    OrderCreate,
+    OrderItemExtraRead,
+    OrderItemRead,
+    OrderRead,
+    OrderStatusUpdate,
+)
+from app.services.stock_service import stock_service
+
+_VALID_TRANSITIONS: dict[str, set[str]] = {
+    "pending": {"cooking", "cancelled"},
+    "cooking": {"served", "cancelled"},
+    "served": {"paid", "cancelled"},
+    "paid": set(),
+    "cancelled": set(),
+}
+
+
+class OrderService:
+    def _assert_branch_access(self, user: User, branch_id: int) -> None:
+        if user.role != "admin" and user.branch_id != branch_id:
+            raise HTTPException(status_code=403, detail="Access denied for this branch")
+
+    async def _build_read(self, session: AsyncSession, order: Order) -> OrderRead:
+        items_result = await session.exec(
+            select(OrderItem).where(OrderItem.order_id == order.id)
+        )
+        item_reads: list[OrderItemRead] = []
+        for item in items_result.all():
+            extras_result = await session.exec(
+                select(OrderItemExtra).where(OrderItemExtra.order_item_id == item.id)
+            )
+            extras = [
+                OrderItemExtraRead(ingredient_id=e.ingredient_id, quantity=e.quantity)
+                for e in extras_result.all()
+            ]
+            item_reads.append(
+                OrderItemRead(
+                    id=item.id,
+                    product_id=item.product_id,
+                    quantity=item.quantity,
+                    price=item.price,
+                    notes=item.notes,
+                    extras=extras,
+                )
+            )
+        return OrderRead(
+            id=order.id,
+            branch_id=order.branch_id,
+            table_id=order.table_id,
+            user_id=order.user_id,
+            status=order.status,
+            total=order.total,
+            created_at=order.created_at,
+            items=item_reads,
+        )
+
+    async def list(
+        self,
+        session: AsyncSession,
+        branch_id: int,
+        user: User,
+        status: str | None = None,
+    ) -> list[OrderRead]:
+        self._assert_branch_access(user, branch_id)
+        q = select(Order).where(Order.branch_id == branch_id)
+        if status:
+            q = q.where(Order.status == status)
+        result = await session.exec(q.order_by(Order.created_at.desc()))
+        return [await self._build_read(session, o) for o in result.all()]
+
+    async def get(
+        self, session: AsyncSession, branch_id: int, order_id: int, user: User
+    ) -> OrderRead:
+        self._assert_branch_access(user, branch_id)
+        order = await session.get(Order, order_id)
+        if not order or order.branch_id != branch_id:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return await self._build_read(session, order)
+
+    async def create(
+        self, session: AsyncSession, branch_id: int, data: OrderCreate, user: User
+    ) -> OrderRead:
+        self._assert_branch_access(user, branch_id)
+        if not data.items:
+            raise HTTPException(status_code=422, detail="Order must have at least one item")
+
+        product_prices: dict[int, float] = {}
+        total = 0.0
+        for item_data in data.items:
+            product = await session.get(Product, item_data.product_id)
+            if not product or not product.is_active:
+                raise HTTPException(
+                    status_code=404, detail=f"Product {item_data.product_id} not found"
+                )
+            product_prices[item_data.product_id] = product.price
+            total += product.price * item_data.quantity
+
+        order = Order(branch_id=branch_id, table_id=data.table_id, user_id=user.id, total=total)
+        session.add(order)
+        await session.flush()
+
+        for item_data in data.items:
+            item = OrderItem(
+                order_id=order.id,
+                product_id=item_data.product_id,
+                quantity=item_data.quantity,
+                price=product_prices[item_data.product_id],
+                notes=item_data.notes,
+            )
+            session.add(item)
+            await session.flush()
+
+            for extra in item_data.extras:
+                session.add(
+                    OrderItemExtra(
+                        order_item_id=item.id,
+                        ingredient_id=extra.ingredient_id,
+                        quantity=extra.quantity,
+                    )
+                )
+
+        if data.table_id:
+            table = await session.get(Table, data.table_id)
+            if table and table.branch_id == branch_id:
+                table.status = "occupied"
+                session.add(table)
+
+        await session.commit()
+        await session.refresh(order)
+        return await self._build_read(session, order)
+
+    async def update_status(
+        self,
+        session: AsyncSession,
+        branch_id: int,
+        order_id: int,
+        data: OrderStatusUpdate,
+        user: User,
+    ) -> OrderRead:
+        self._assert_branch_access(user, branch_id)
+        order = await session.get(Order, order_id)
+        if not order or order.branch_id != branch_id:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        allowed = _VALID_TRANSITIONS.get(order.status, set())
+        if data.status not in allowed:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Cannot transition from '{order.status}' to '{data.status}'",
+            )
+
+        order.status = data.status
+        session.add(order)
+
+        if data.status == "paid":
+            items_result = await session.exec(
+                select(OrderItem).where(OrderItem.order_id == order.id)
+            )
+            items = items_result.all()
+            all_extras: list[OrderItemExtra] = []
+            for item in items:
+                extras_result = await session.exec(
+                    select(OrderItemExtra).where(OrderItemExtra.order_item_id == item.id)
+                )
+                all_extras.extend(extras_result.all())
+            await stock_service.deduct_order_stock(session, branch_id, items, all_extras)
+
+        if data.status in ("paid", "cancelled") and order.table_id:
+            table = await session.get(Table, order.table_id)
+            if table:
+                table.status = "available"
+                session.add(table)
+
+        await session.commit()
+        await session.refresh(order)
+        return await self._build_read(session, order)
+
+
+order_service = OrderService()

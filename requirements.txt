@@ -1,0 +1,8 @@
+fastapi[all]
+sqlmodel
+asyncpg
+python-jose[cryptography]
+passlib[bcrypt]
+alembic
+python-dotenv
+pydantic-settings

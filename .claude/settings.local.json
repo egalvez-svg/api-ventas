@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m alembic revision --autogenerate -m \"initial schema\")",
+      "Bash(python -m alembic upgrade head)",
+      "Bash(python -c \"from app.api.v1.router import api_router; print\\('Router OK'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"from main import app; print\\('OK'\\)\")",
+      "Bash(pip show *)",
+      "Bash(alembic upgrade *)",
+      "Bash(python seed.py)"
+    ]
+  }
+}
