@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `stock_service.py` y `table_service.py` — type hints de `User` a `AuthContext` en métodos de acceso por sucursal
+
 ### Added
 - Endpoints de logout: `POST /auth/logout` revoca el refresh token actual, `POST /auth/logout-all` revoca todos los tokens del usuario
 - CRUD completo de sucursales: `GET /branches`, `GET /branches/{id}`, `POST /branches`, `PATCH /branches/{id}`, `DELETE /branches/{id}`
