@@ -35,11 +35,14 @@ class InvoiceService:
                 "extras": [{"ingredient_id": e.ingredient_id, "quantity": e.quantity} for e in extras]
             })
 
+        subtotal = sum(i["subtotal"] for i in invoice_items)
         return {
             "order_id": order.id,
             "branch_id": order.branch_id,
             "created_at": order.created_at,
-            "subtotal": order.total,
+            "subtotal": subtotal,
+            "discount": order.discount,
+            "coupon_id": order.coupon_id,
             "tip": order.tip,
             "total": order.total + order.tip,
             "items": invoice_items,
@@ -66,6 +69,7 @@ class InvoiceService:
 
         order_summaries = []
         subtotal = 0.0
+        discount = 0.0
 
         for order in orders:
             items_result = await session.exec(
@@ -88,22 +92,27 @@ class InvoiceService:
                     "extras": [{"ingredient_id": e.ingredient_id, "quantity": e.quantity} for e in extras],
                 })
 
+            order_subtotal = sum(i["subtotal"] for i in invoice_items)
             order_summaries.append({
                 "order_id": order.id,
                 "status": order.status,
                 "created_at": order.created_at,
                 "items": invoice_items,
+                "order_subtotal": order_subtotal,
+                "discount": order.discount,
                 "order_total": order.total,
             })
-            subtotal += order.total
+            subtotal += order_subtotal
+            discount += order.discount
 
         return {
             "table_id": table_id,
             "branch_id": branch_id,
             "orders": order_summaries,
             "subtotal": subtotal,
+            "discount": discount,
             "tip": 0.0,
-            "total": subtotal,
+            "total": subtotal - discount,
         }
 
 

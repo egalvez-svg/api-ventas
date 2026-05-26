@@ -49,6 +49,7 @@ class OrderItemRead(SQLModel):
 class OrderCreate(SQLModel):
     table_id: Optional[int] = None
     items: list[OrderItemCreate]
+    coupon_code: Optional[str] = None
 
 
 class OrderRead(SQLModel):
@@ -58,6 +59,8 @@ class OrderRead(SQLModel):
     user_id: int
     status: str
     total: float
+    discount: float = 0.0
+    coupon_id: Optional[int] = None
     tip: float = 0.0
     created_at: datetime
     items: list[OrderItemRead] = []
@@ -77,5 +80,6 @@ class TableInvoiceRead(SQLModel):
     branch_id: int
     orders: list[OrderRead]
     subtotal: float
+    discount: float = 0.0
     tip: float
     total: float
