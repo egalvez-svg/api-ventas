@@ -45,20 +45,25 @@ class StockService:
         self,
         session: AsyncSession,
         branch_id: int,
-        ingredient_id: int,
+        ingredient_name: str,
         data: BranchStockUpdate,
         user: AuthContext,
     ) -> BranchStockRead:
         self._assert_branch_access(user, branch_id)
 
-        stock = await session.get(BranchStock, (branch_id, ingredient_id))
+        result = await session.exec(
+            select(Ingredient).where(
+                Ingredient.name == ingredient_name,
+                Ingredient.branch_id == branch_id,
+            )
+        )
+        ingredient = result.first()
+        if not ingredient:
+            raise HTTPException(status_code=404, detail="Ingrediente no encontrado en este local")
+
+        stock = await session.get(BranchStock, (branch_id, ingredient.id))
         if not stock:
-            ingredient = await session.get(Ingredient, ingredient_id)
-            if not ingredient:
-                raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
-            if ingredient.branch_id != branch_id:
-                raise HTTPException(status_code=400, detail="El ingrediente no pertenece a este local")
-            stock = BranchStock(branch_id=branch_id, ingredient_id=ingredient_id)
+            stock = BranchStock(branch_id=branch_id, ingredient_id=ingredient.id)
 
         for key, value in data.model_dump(exclude_unset=True).items():
             setattr(stock, key, value)

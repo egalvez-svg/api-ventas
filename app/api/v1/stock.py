@@ -20,12 +20,12 @@ async def list_critical_stock(branch_id: int, session: SessionDep, user: Manager
     return await stock_service.list_critical(session, branch_id, user)
 
 
-@router.patch("/{branch_id}/stock/{ingredient_id}", response_model=BranchStockRead)
+@router.patch("/{branch_id}/stock/{ingredient_name}", response_model=BranchStockRead)
 async def update_stock(
     branch_id: int,
-    ingredient_id: int,
+    ingredient_name: str,
     data: BranchStockUpdate,
     session: SessionDep,
     user: ManagerDep,
 ):
-    return await stock_service.upsert(session, branch_id, ingredient_id, data, user)
+    return await stock_service.upsert(session, branch_id, ingredient_name, data, user)

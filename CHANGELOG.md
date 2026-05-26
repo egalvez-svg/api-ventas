@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Modelo `Coupon` con soporte de descuento por porcentaje y monto fijo, límite de usos, fecha de vencimiento y alcance por sucursal o global
+- Endpoints CRUD de cupones en `/branches/{branch_id}/coupons` (requiere rol `manager` o superior)
+- Endpoint `GET /branches/{branch_id}/coupons/validate` para validar un cupón antes de aplicarlo a una orden
+- Campo `coupon_code` en `OrderCreate` para aplicar un cupón al crear una orden
+- Campos `discount` y `coupon_id` en `Order` y `OrderRead` para registrar el descuento aplicado
+- Incremento automático de `used_count` al pagar una orden con cupón asociado
+- Soporte de `discount` en `TableInvoiceRead` y en el servicio de facturación (`invoice_service`)
+- Migración Alembic `aa679333cc5e` — agrega tablas `coupon` y columnas `coupon_id`, `discount` en `order`
+
+### Changed
+- Endpoint `PATCH /branches/{branch_id}/stock/{ingredient_name}` ahora recibe el nombre del ingrediente en lugar del ID
+- Refactorizada la lógica de pre-vuelo en `alembic/env.py` para usar conexiones separadas al sellar y migrar
+
+### Added
 - Catálogo por local: `Category`, `Ingredient` y `Product` ahora tienen `branch_id` — cada local gestiona su propio menú e ingredientes de forma independiente
 - Endpoints de catálogo movidos a `/branches/{branch_id}/categories`, `/branches/{branch_id}/ingredients` y `/branches/{branch_id}/products`
 - Validación de pertenencia al local en get, update, delete y set_recipe — un local no puede acceder al catálogo de otro

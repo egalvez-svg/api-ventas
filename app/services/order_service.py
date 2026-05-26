@@ -61,6 +61,8 @@ class OrderService:
             user_id=order.user_id,
             status=order.status,
             total=order.total,
+            discount=order.discount,
+            coupon_id=order.coupon_id,
             tip=order.tip,
             created_at=order.created_at,
             items=item_reads,
@@ -114,11 +116,26 @@ class OrderService:
                 status_code=400, detail="No active shift found for this branch. Please open a shift first."
             )
 
+        discount = 0.0
+        coupon_id = None
+        if data.coupon_code:
+            from app.services.coupon_service import coupon_service
+            coupon = await coupon_service.validate(session, branch_id, data.coupon_code, total, user)
+            coupon_id = coupon.id
+            if coupon.discount_type == "percentage":
+                discount = total * (coupon.discount_value / 100.0)
+            else:
+                discount = coupon.discount_value
+            discount = min(discount, total)
+            total = total - discount
+
         order = Order(
             branch_id=branch_id,
             table_id=data.table_id,
             user_id=user.id,
             shift_id=shift.id,
+            coupon_id=coupon_id,
+            discount=discount,
             total=total,
         )
         session.add(order)
@@ -177,6 +194,12 @@ class OrderService:
         order.status = data.status
         if data.status == "paid":
             order.tip = data.tip
+            if order.coupon_id:
+                from app.models.sales import Coupon
+                coupon = await session.get(Coupon, order.coupon_id)
+                if coupon:
+                    coupon.used_count += 1
+                    session.add(coupon)
         session.add(order)
 
         if data.status == "paid":
@@ -241,6 +264,12 @@ class OrderService:
             order.status = "paid"
             if i == 0:
                 order.tip = tip
+            if order.coupon_id:
+                from app.models.sales import Coupon
+                coupon = await session.get(Coupon, order.coupon_id)
+                if coupon:
+                    coupon.used_count += 1
+                    session.add(coupon)
             session.add(order)
 
             items_result = await session.exec(
