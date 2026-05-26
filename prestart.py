@@ -8,13 +8,16 @@ en la revisión actual antes de correr upgrade head.
 import os
 import sys
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import psycopg2
 from alembic.config import Config
 from alembic import command
 
 CURRENT_HEAD = "f3c8a2e1b7d4"
 
-DATABASE_URL = os.environ["DATABASE_URL"].replace("postgresql+asyncpg://", "postgresql://")
+DATABASE_URL = os.environ.get("DATABASE_URL", "").replace("postgresql+asyncpg://", "postgresql://")
 
 
 def get_alembic_version(conn) -> str | None:

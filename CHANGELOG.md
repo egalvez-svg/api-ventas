@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Función `get_monthly_sales_trend` en `report_service` y `get_global_monthly_trend` en `admin_report_service`
 
 ### Fixed
+- Corregido error de migración inicial en despliegues automatizados (e.g. Render) cuando las tablas ya existen en la base de datos detectándolas en env.py y sellando la versión de Alembic
 - Incluido estado `delivered` en los filtros de órdenes activas para liberación de mesa y pago consolidado por mesa
 
 ### Added
