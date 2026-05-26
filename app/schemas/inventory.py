@@ -9,6 +9,7 @@ class CategoryCreate(SQLModel):
 
 class CategoryRead(SQLModel):
     id: int
+    branch_id: int
     name: str
     description: Optional[str] = None
 
@@ -26,6 +27,7 @@ class IngredientCreate(SQLModel):
 
 class IngredientRead(SQLModel):
     id: int
+    branch_id: int
     name: str
     unit: str
     cost_per_unit: float
@@ -59,6 +61,7 @@ class ProductCreate(SQLModel):
 
 class ProductRead(SQLModel):
     id: int
+    branch_id: int
     name: str
     description: Optional[str] = None
     price: float

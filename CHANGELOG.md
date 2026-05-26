@@ -7,10 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Catálogo por local: `Category`, `Ingredient` y `Product` ahora tienen `branch_id` — cada local gestiona su propio menú e ingredientes de forma independiente
+- Endpoints de catálogo movidos a `/branches/{branch_id}/categories`, `/branches/{branch_id}/ingredients` y `/branches/{branch_id}/products`
+- Validación de pertenencia al local en get, update, delete y set_recipe — un local no puede acceder al catálogo de otro
+- Validación de pertenencia al local en `BranchStock.upsert` — el ingrediente debe ser del mismo local
+- Migración Alembic `f3c8a2e1b7d4` — agrega `branch_id` a tablas `category`, `ingredient` y `product`; reemplaza el unique global de `category.name` por un unique compuesto `(branch_id, name)`
+- Endpoint `GET /branches/{branch_id}/reports/monthly-trend` con tendencia mensual de ventas brutas, netas, propinas y pérdidas netas
+- Endpoint `GET /reports/monthly-trend` (admin) con tendencia mensual consolidada y desglose por sucursal
+- Schema `MonthlyTrendPoint`, `BranchMonthlyTrend` y `GlobalMonthlyTrend` en `schemas/reports.py`
+- Función `get_monthly_sales_trend` en `report_service` y `get_global_monthly_trend` en `admin_report_service`
+
 ### Fixed
 - Incluido estado `delivered` en los filtros de órdenes activas para liberación de mesa y pago consolidado por mesa
 
 ### Added
+- Endpoints de reportes globales para admin: `GET /reports/last-shift`, `/averages`, `/trend` y `/by-weekday` — retornan total consolidado + desglose por sucursal
+- Servicio `admin_report_service` con lógica de agregación multi-sucursal
+- Schemas globales `GlobalLastShift`, `GlobalAverages`, `GlobalTrend`, `GlobalWeekday` y schemas de desglose `BranchLastShift`, `BranchAverages`, `BranchTrend`, `BranchWeekday` en `schemas/reports.py`
+- Endpoints de reportes de ventas por sucursal: `GET /branches/{branch_id}/reports/last-shift`, `/averages`, `/trend` y `/by-weekday`
+- Servicio `report_service` con lógica de agregación para última sesión, promedios y tendencia
+- Schemas `LastShiftSummary`, `PeriodAverages`, `DailySalesPoint` y `WeekdaySales` en `schemas/reports.py`
 - Endpoint `GET /branches/{branch_id}/tables/{table_id}/invoice` para obtener factura consolidada de todos los pedidos activos de una mesa
 - Endpoint `POST /branches/{branch_id}/tables/{table_id}/pay` para cobrar todos los pedidos activos de una mesa en un solo pago, aplicar propina y liberar la mesa
 - Método `generate_table_invoice` en `InvoiceService` para resumir ítems de múltiples órdenes por mesa
