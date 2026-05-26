@@ -1,8 +1,8 @@
-from typing import Annotated, Optional
+from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 
-from app.core.deps import AdminDep, CurrentUser, SessionDep
+from app.core.deps import CurrentUser, ManagerDep, SessionDep
 from app.schemas.inventory import (
     ProductCreate,
     ProductRead,
@@ -13,45 +13,46 @@ from app.schemas.inventory import (
 )
 from app.services.product_service import product_service
 
-router = APIRouter(prefix="/products", tags=["products"])
-
+router = APIRouter(prefix="/branches/{branch_id}/products", tags=["products"])
 
 
 @router.get("/", response_model=list[ProductRead])
 async def list_products(
+    branch_id: int,
     session: SessionDep,
     _: CurrentUser,
     category_id: Optional[int] = Query(default=None),
     active_only: bool = Query(default=True),
 ):
-    return await product_service.list(session, category_id=category_id, active_only=active_only)
+    return await product_service.list(session, branch_id, category_id=category_id, active_only=active_only)
 
 
 @router.post("/", response_model=ProductRead, status_code=201)
-async def create_product(data: ProductCreate, session: SessionDep, _: AdminDep):
-    return await product_service.create(session, data)
+async def create_product(branch_id: int, data: ProductCreate, session: SessionDep, _: ManagerDep):
+    return await product_service.create(session, data, branch_id)
 
 
 @router.get("/{product_id}", response_model=ProductReadWithRecipe)
-async def get_product(product_id: int, session: SessionDep, _: CurrentUser):
-    return await product_service.get_with_recipe(session, product_id)
+async def get_product(branch_id: int, product_id: int, session: SessionDep, _: CurrentUser):
+    return await product_service.get_with_recipe(session, product_id, branch_id)
 
 
 @router.patch("/{product_id}", response_model=ProductRead)
-async def update_product(product_id: int, data: ProductUpdate, session: SessionDep, _: AdminDep):
-    return await product_service.update(session, product_id, data)
+async def update_product(branch_id: int, product_id: int, data: ProductUpdate, session: SessionDep, _: ManagerDep):
+    return await product_service.update(session, product_id, data, branch_id)
 
 
 @router.delete("/{product_id}", status_code=204)
-async def deactivate_product(product_id: int, session: SessionDep, _: AdminDep):
-    await product_service.delete(session, product_id)
+async def deactivate_product(branch_id: int, product_id: int, session: SessionDep, _: ManagerDep):
+    await product_service.delete(session, product_id, branch_id)
 
 
 @router.put("/{product_id}/recipe", response_model=list[RecipeItemRead])
 async def set_recipe(
+    branch_id: int,
     product_id: int,
     items: list[RecipeItemCreate],
     session: SessionDep,
-    _: AdminDep,
+    _: ManagerDep,
 ):
-    return await product_service.set_recipe(session, product_id, items)
+    return await product_service.set_recipe(session, product_id, items, branch_id)

@@ -53,8 +53,11 @@ class StockService:
 
         stock = await session.get(BranchStock, (branch_id, ingredient_id))
         if not stock:
-            if not await session.get(Ingredient, ingredient_id):
-                raise HTTPException(status_code=404, detail="Ingredient not found")
+            ingredient = await session.get(Ingredient, ingredient_id)
+            if not ingredient:
+                raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+            if ingredient.branch_id != branch_id:
+                raise HTTPException(status_code=400, detail="El ingrediente no pertenece a este local")
             stock = BranchStock(branch_id=branch_id, ingredient_id=ingredient_id)
 
         for key, value in data.model_dump(exclude_unset=True).items():
