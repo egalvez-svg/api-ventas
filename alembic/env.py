@@ -44,6 +44,44 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
+        # Check if the tables exist but alembic_version doesn't have a version registered
+        from sqlalchemy import inspect, text
+        inspector = inspect(connection)
+        
+        has_alembic = inspector.has_table("alembic_version")
+        has_version = False
+        if has_alembic:
+            try:
+                res = connection.execute(text("SELECT version_num FROM alembic_version")).fetchone()
+                if res and res[0]:
+                    has_version = True
+            except Exception:
+                pass
+                
+        if not has_version and inspector.has_table("branch"):
+            from alembic.script import ScriptDirectory
+            script = ScriptDirectory.from_config(config)
+            head_rev = script.get_current_head()
+            
+            if head_rev:
+                print(f"[alembic/env.py] Existing tables ('branch') detected without Alembic version. Stamping to head: {head_rev}")
+                if not has_alembic:
+                    connection.execute(text(
+                        "CREATE TABLE alembic_version ("
+                        "version_num VARCHAR(32) NOT NULL, "
+                        "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)"
+                        ")"
+                    ))
+                connection.execute(text("DELETE FROM alembic_version"))
+                connection.execute(
+                    text("INSERT INTO alembic_version (version_num) VALUES (:version)"),
+                    {"version": head_rev}
+                )
+                try:
+                    connection.commit()
+                except Exception:
+                    pass
+
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
