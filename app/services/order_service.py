@@ -12,13 +12,15 @@ from app.schemas.sales import (
     OrderItemRead,
     OrderRead,
     OrderStatusUpdate,
+    TableInvoiceRead,
 )
 from app.services.stock_service import stock_service
 
 _VALID_TRANSITIONS: dict[str, set[str]] = {
     "pending": {"cooking", "cancelled"},
-    "cooking": {"served", "cancelled"},
-    "served": {"paid", "cancelled"},
+    "cooking": {"served", "delivered", "cancelled"},
+    "served": {"delivered", "paid", "cancelled"},
+    "delivered": {"paid", "cancelled"},
     "paid": set(),
     "cancelled": set(),
 }
@@ -59,6 +61,7 @@ class OrderService:
             user_id=order.user_id,
             status=order.status,
             total=order.total,
+            tip=order.tip,
             created_at=order.created_at,
             items=item_reads,
         )
@@ -172,6 +175,8 @@ class OrderService:
             )
 
         order.status = data.status
+        if data.status == "paid":
+            order.tip = data.tip
         session.add(order)
 
         if data.status == "paid":
@@ -188,14 +193,85 @@ class OrderService:
             await stock_service.deduct_order_stock(session, branch_id, items, all_extras)
 
         if data.status in ("paid", "cancelled") and order.table_id:
-            table = await session.get(Table, order.table_id)
-            if table:
-                table.status = "available"
-                session.add(table)
+            remaining = await session.exec(
+                select(Order).where(
+                    Order.table_id == order.table_id,
+                    Order.id != order.id,
+                    Order.status.in_(["pending", "cooking", "served", "delivered"]),
+                )
+            )
+            if not remaining.first():
+                table = await session.get(Table, order.table_id)
+                if table:
+                    table.status = "available"
+                    session.add(table)
 
         await session.commit()
         await session.refresh(order)
         return await self._build_read(session, order)
+
+
+    async def pay_table_orders(
+        self,
+        session: AsyncSession,
+        branch_id: int,
+        table_id: int,
+        tip: float,
+        user: User,
+    ) -> TableInvoiceRead:
+        self._assert_branch_access(user, branch_id)
+
+        table = await session.get(Table, table_id)
+        if not table or table.branch_id != branch_id:
+            raise HTTPException(status_code=404, detail="Table not found")
+
+        result = await session.exec(
+            select(Order).where(
+                Order.table_id == table_id,
+                Order.branch_id == branch_id,
+                Order.status.in_(["pending", "cooking", "served", "delivered"]),
+            )
+        )
+        orders = result.all()
+
+        if not orders:
+            raise HTTPException(status_code=422, detail="No active orders for this table")
+
+        for i, order in enumerate(orders):
+            order.status = "paid"
+            if i == 0:
+                order.tip = tip
+            session.add(order)
+
+            items_result = await session.exec(
+                select(OrderItem).where(OrderItem.order_id == order.id)
+            )
+            items = items_result.all()
+            all_extras: list[OrderItemExtra] = []
+            for item in items:
+                extras_result = await session.exec(
+                    select(OrderItemExtra).where(OrderItemExtra.order_item_id == item.id)
+                )
+                all_extras.extend(extras_result.all())
+            await stock_service.deduct_order_stock(session, branch_id, items, all_extras)
+
+        table.status = "available"
+        session.add(table)
+        await session.commit()
+
+        for order in orders:
+            await session.refresh(order)
+
+        order_reads = [await self._build_read(session, o) for o in orders]
+        subtotal = sum(o.total for o in orders)
+        return TableInvoiceRead(
+            table_id=table_id,
+            branch_id=branch_id,
+            orders=order_reads,
+            subtotal=subtotal,
+            tip=tip,
+            total=subtotal + tip,
+        )
 
 
 order_service = OrderService()
