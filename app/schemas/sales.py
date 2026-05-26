@@ -58,9 +58,24 @@ class OrderRead(SQLModel):
     user_id: int
     status: str
     total: float
+    tip: float = 0.0
     created_at: datetime
     items: list[OrderItemRead] = []
 
 
 class OrderStatusUpdate(SQLModel):
     status: str
+    tip: float = 0.0
+
+
+class TablePayRequest(SQLModel):
+    tip: float = 0.0
+
+
+class TableInvoiceRead(SQLModel):
+    table_id: int
+    branch_id: int
+    orders: list[OrderRead]
+    subtotal: float
+    tip: float
+    total: float
