@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Soporte de `discount` en `TableInvoiceRead` y en el servicio de facturación (`invoice_service`)
 - Migración Alembic `aa679333cc5e` — agrega tablas `coupon` y columnas `coupon_id`, `discount` en `order`
 
+### Fixed
+- Reemplazado `passlib` por `bcrypt` directo para resolver incompatibilidad con `bcrypt >= 4.0.0` en Python 3.14 (ValueError al verificar contraseñas)
+
 ### Changed
 - Endpoint `PATCH /branches/{branch_id}/stock/{ingredient_name}` ahora recibe el nombre del ingrediente en lugar del ID
 - Refactorizada la lógica de pre-vuelo en `alembic/env.py` para usar conexiones separadas al sellar y migrar
