@@ -58,6 +58,7 @@ class OrderRead(SQLModel):
     branch_id: int
     table_id: Optional[int] = None
     user_id: int
+    waiter_name: str
     status: str
     total: float
     discount: float = 0.0
