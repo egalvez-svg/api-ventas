@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Query
 
 from app.core.deps import ManagerDep, SessionDep
-from app.schemas.reports import DailySalesPoint, LastShiftSummary, MonthlyTrendPoint, PeriodAverages, WeekdaySales
+from app.schemas.reports import DailySalesPoint, LastShiftSummary, MonthlyTrendPoint, PeriodAverages, ProductRankingPoint, WeekdaySales
 from app.services.report_service import (
     get_last_shift_summary,
     get_monthly_sales_trend,
     get_period_averages,
     get_sales_by_weekday,
     get_sales_trend,
+    get_top_products,
 )
 
 router = APIRouter(prefix="/branches/{branch_id}/reports", tags=["Reports"])
@@ -50,6 +51,18 @@ async def sales_by_weekday(
 ):
     """Distribución de ventas por día de la semana (0=Lunes … 6=Domingo)."""
     return await get_sales_by_weekday(branch_id, days, session)
+
+
+@router.get("/top-products", response_model=list[ProductRankingPoint])
+async def top_products(
+    branch_id: int,
+    session: SessionDep,
+    _: ManagerDep,
+    days: int = Query(default=30, ge=1, le=365, description="Ventana de análisis en días"),
+    limit: int = Query(default=10, ge=1, le=50, description="Cantidad de productos a mostrar"),
+):
+    """Ranking de productos más vendidos por cantidad, dentro del período indicado."""
+    return await get_top_products(branch_id, days, limit, session)
 
 
 @router.get("/monthly-trend", response_model=list[MonthlyTrendPoint])

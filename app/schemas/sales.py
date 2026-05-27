@@ -40,6 +40,7 @@ class OrderItemCreate(SQLModel):
 class OrderItemRead(SQLModel):
     id: int
     product_id: int
+    product_name: str
     quantity: int
     price: float
     notes: Optional[str] = None
@@ -69,6 +70,7 @@ class OrderRead(SQLModel):
 class OrderStatusUpdate(SQLModel):
     status: str
     tip: float = 0.0
+    coupon_code: Optional[str] = None
 
 
 class TablePayRequest(SQLModel):

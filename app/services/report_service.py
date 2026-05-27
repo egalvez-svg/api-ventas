@@ -6,8 +6,9 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.base import Shift
-from app.models.sales import Order
-from app.schemas.reports import DailySalesPoint, LastShiftSummary, MonthlyTrendPoint, PeriodAverages, WeekdaySales
+from app.models.inventory import Product
+from app.models.sales import Order, OrderItem
+from app.schemas.reports import DailySalesPoint, LastShiftSummary, MonthlyTrendPoint, PeriodAverages, ProductRankingPoint, WeekdaySales
 
 WEEKDAY_NAMES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 MONTH_LABELS = ["", "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
@@ -130,6 +131,55 @@ async def get_sales_by_weekday(branch_id: int, days: int, session: AsyncSession)
             )
         )
     return result
+
+
+async def get_top_products(
+    branch_id: int, days: int, limit: int, session: AsyncSession
+) -> list[ProductRankingPoint]:
+    since = datetime.utcnow() - timedelta(days=days)
+
+    orders_result = await session.exec(
+        select(Order).where(
+            Order.branch_id == branch_id,
+            Order.status == "paid",
+            Order.created_at >= since,
+        )
+    )
+    order_ids = [o.id for o in orders_result.all()]
+
+    if not order_ids:
+        return []
+
+    items_result = await session.exec(
+        select(OrderItem).where(OrderItem.order_id.in_(order_ids))
+    )
+    items = items_result.all()
+
+    # Agregación en memoria: {product_id: {quantity, revenue, order_ids}}
+    agg: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "revenue": 0.0, "orders": set()})
+    for item in items:
+        agg[item.product_id]["quantity"] += item.quantity
+        agg[item.product_id]["revenue"] += item.quantity * item.price
+        agg[item.product_id]["orders"].add(item.order_id)
+
+    # Cargar nombres de productos en una sola pasada
+    product_ids = list(agg.keys())
+    products_result = await session.exec(select(Product).where(Product.id.in_(product_ids)))
+    product_names = {p.id: p.name for p in products_result.all()}
+
+    ranking = sorted(agg.items(), key=lambda x: x[1]["quantity"], reverse=True)[:limit]
+
+    return [
+        ProductRankingPoint(
+            rank=i + 1,
+            product_id=pid,
+            product_name=product_names.get(pid, "—"),
+            total_quantity=data["quantity"],
+            total_revenue=round(data["revenue"], 2),
+            order_count=len(data["orders"]),
+        )
+        for i, (pid, data) in enumerate(ranking)
+    ]
 
 
 async def get_monthly_sales_trend(branch_id: int, months: int, session: AsyncSession) -> list[MonthlyTrendPoint]:
