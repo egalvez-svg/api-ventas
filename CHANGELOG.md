@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Soporte de `discount` en `TableInvoiceRead` y en el servicio de facturación (`invoice_service`)
 - Migración Alembic `aa679333cc5e` — agrega tablas `coupon` y columnas `coupon_id`, `discount` en `order`
 
+### Changed
+- Permisos de gestión de usuarios extendidos al rol `manager`: puede listar, crear, ver, editar y desactivar usuarios de su propia sucursal
+- Manager no puede asignar el rol `admin` ni gestionar membresías de otras sucursales (prevención de escalación de privilegios)
+
 ### Fixed
 - Reemplazado `passlib` por `bcrypt` directo para resolver incompatibilidad con `bcrypt >= 4.0.0` en Python 3.14 (ValueError al verificar contraseñas)
 
