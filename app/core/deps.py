@@ -74,5 +74,6 @@ def require_roles(*roles: str):
 
 AdminDep = Annotated[AuthContext, Depends(require_roles("admin"))]
 ManagerDep = Annotated[AuthContext, Depends(require_roles("admin", "manager"))]
+CashierDep = Annotated[AuthContext, Depends(require_roles("admin", "manager", "cashier"))]
 WaiterDep = Annotated[AuthContext, Depends(require_roles("admin", "manager", "waiter", "cashier"))]
 KitchenDep = Annotated[AuthContext, Depends(require_roles("admin", "manager", "kitchen"))]

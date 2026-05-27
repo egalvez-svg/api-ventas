@@ -44,10 +44,12 @@ class OrderService:
                 OrderItemExtraRead(ingredient_id=e.ingredient_id, quantity=e.quantity)
                 for e in extras_result.all()
             ]
+            product = await session.get(Product, item.product_id)
             item_reads.append(
                 OrderItemRead(
                     id=item.id,
                     product_id=item.product_id,
+                    product_name=product.name if product else "—",
                     quantity=item.quantity,
                     price=item.price,
                     notes=item.notes,
@@ -67,6 +69,21 @@ class OrderService:
             created_at=order.created_at,
             items=item_reads,
         )
+
+    async def list_by_shift(
+        self,
+        session: AsyncSession,
+        branch_id: int,
+        shift_id: int,
+        user: User,
+    ) -> list[OrderRead]:
+        self._assert_branch_access(user, branch_id)
+        result = await session.exec(
+            select(Order)
+            .where(Order.branch_id == branch_id, Order.shift_id == shift_id)
+            .order_by(Order.created_at.desc())
+        )
+        return [await self._build_read(session, o) for o in result.all()]
 
     async def list(
         self,
@@ -194,13 +211,29 @@ class OrderService:
         order.status = data.status
         if data.status == "paid":
             order.tip = data.tip
-            if order.coupon_id:
+            if data.coupon_code and not order.coupon_id:
+                from app.services.coupon_service import coupon_service
+                from app.models.sales import Coupon
+                base_total = order.total + order.discount  # total sin descuento previo
+                coupon = await coupon_service.validate(session, branch_id, data.coupon_code, base_total, user)
+                if coupon.discount_type == "percentage":
+                    discount = base_total * (coupon.discount_value / 100.0)
+                else:
+                    discount = coupon.discount_value
+                discount = min(discount, base_total)
+                order.coupon_id = coupon.id
+                order.discount = discount
+                order.total = base_total - discount
+                coupon.used_count += 1
+                session.add(coupon)
+            elif order.coupon_id:
                 from app.models.sales import Coupon
                 coupon = await session.get(Coupon, order.coupon_id)
                 if coupon:
                     coupon.used_count += 1
                     session.add(coupon)
         session.add(order)
+        await session.flush()
 
         if data.status == "paid":
             items_result = await session.exec(

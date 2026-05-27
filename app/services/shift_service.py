@@ -11,6 +11,26 @@ ADMIN_REFRESH_DAYS = 7
 NO_SHIFT_REFRESH_HOURS = 1
 
 
+async def list_shifts(
+    branch_id: int, session: AsyncSession, skip: int = 0, limit: int = 20
+) -> list[Shift]:
+    result = await session.exec(
+        select(Shift)
+        .where(Shift.branch_id == branch_id)
+        .order_by(Shift.opened_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    return list(result.all())
+
+
+async def get_shift_by_id(branch_id: int, shift_id: int, session: AsyncSession) -> Shift:
+    shift = await session.get(Shift, shift_id)
+    if not shift or shift.branch_id != branch_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shift not found")
+    return shift
+
+
 async def get_active_shift(branch_id: int, session: AsyncSession) -> Shift | None:
     result = await session.exec(
         select(Shift).where(Shift.branch_id == branch_id, Shift.is_active == True)

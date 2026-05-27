@@ -4,7 +4,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.inventory import Product
-from app.models.sales import Order, OrderItem, OrderItemExtra, Table
+from app.models.sales import Coupon, Order, OrderItem, OrderItemExtra, Table
 
 
 class InvoiceService:
@@ -35,6 +35,18 @@ class InvoiceService:
                 "extras": [{"ingredient_id": e.ingredient_id, "quantity": e.quantity} for e in extras]
             })
 
+        coupon_info = None
+        if order.coupon_id:
+            coupon = await session.get(Coupon, order.coupon_id)
+            if coupon:
+                coupon_info = {
+                    "id": coupon.id,
+                    "code": coupon.code,
+                    "description": coupon.description,
+                    "discount_type": coupon.discount_type,
+                    "discount_value": coupon.discount_value,
+                }
+
         subtotal = sum(i["subtotal"] for i in invoice_items)
         return {
             "order_id": order.id,
@@ -42,7 +54,7 @@ class InvoiceService:
             "created_at": order.created_at,
             "subtotal": subtotal,
             "discount": order.discount,
-            "coupon_id": order.coupon_id,
+            "coupon": coupon_info,
             "tip": order.tip,
             "total": order.total + order.tip,
             "items": invoice_items,
@@ -92,6 +104,18 @@ class InvoiceService:
                     "extras": [{"ingredient_id": e.ingredient_id, "quantity": e.quantity} for e in extras],
                 })
 
+            coupon_info = None
+            if order.coupon_id:
+                coupon = await session.get(Coupon, order.coupon_id)
+                if coupon:
+                    coupon_info = {
+                        "id": coupon.id,
+                        "code": coupon.code,
+                        "description": coupon.description,
+                        "discount_type": coupon.discount_type,
+                        "discount_value": coupon.discount_value,
+                    }
+
             order_subtotal = sum(i["subtotal"] for i in invoice_items)
             order_summaries.append({
                 "order_id": order.id,
@@ -100,6 +124,7 @@ class InvoiceService:
                 "items": invoice_items,
                 "order_subtotal": order_subtotal,
                 "discount": order.discount,
+                "coupon": coupon_info,
                 "order_total": order.total,
             })
             subtotal += order_subtotal

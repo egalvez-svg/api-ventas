@@ -48,13 +48,17 @@ class CouponService:
         if data.discount_value <= 0:
             raise HTTPException(status_code=400, detail="Discount value must be greater than zero")
 
+        exp = data.expiration_date
+        if exp is not None and exp.tzinfo is not None:
+            exp = exp.replace(tzinfo=None)
+
         coupon = Coupon(
             code=code_upper,
             description=data.description,
             discount_type=data.discount_type,
             discount_value=data.discount_value,
             min_order_value=data.min_order_value,
-            expiration_date=data.expiration_date,
+            expiration_date=exp,
             max_uses=data.max_uses,
             is_active=data.is_active,
             branch_id=branch_id,
@@ -98,7 +102,10 @@ class CouponService:
         if data.min_order_value is not None:
             coupon.min_order_value = data.min_order_value
         if data.expiration_date is not None:
-            coupon.expiration_date = data.expiration_date
+            exp = data.expiration_date
+            if exp.tzinfo is not None:
+                exp = exp.replace(tzinfo=None)
+            coupon.expiration_date = exp
         if data.max_uses is not None:
             coupon.max_uses = data.max_uses
         if data.is_active is not None:
@@ -132,7 +139,8 @@ class CouponService:
         if not coupon.is_active:
             raise HTTPException(status_code=400, detail="Coupon is inactive")
 
-        if coupon.expiration_date < datetime.utcnow():
+        exp = coupon.expiration_date
+        if exp is not None and exp.replace(tzinfo=None) < datetime.utcnow():
             raise HTTPException(status_code=400, detail="Coupon has expired")
 
         if coupon.max_uses is not None and coupon.used_count >= coupon.max_uses:

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Datos completos del cupón (`code`, `description`, `discount_type`, `discount_value`) en facturas de orden y de mesa, reemplazando el campo `coupon_id` crudo
+- Campo `product_name` en `OrderItemRead` para evitar lookups adicionales desde el cliente
+- Endpoint `GET /branches/{branch_id}/reports/top-products` con ranking de productos más vendidos por cantidad, filtrable por días y límite de resultados
+- Endpoint `GET /branches/{branch_id}/shifts` para listar el historial de turnos paginado (manager/admin)
+- Endpoint `GET /branches/{branch_id}/shifts/current/orders` para ver las órdenes del turno activo (cajero/manager/admin)
+- Endpoint `GET /branches/{branch_id}/shifts/{shift_id}/orders` para ver las órdenes de un turno específico (manager/admin)
+- Dependencia `CashierDep` para restringir endpoints al rol cajero y superiores
+- Campo `coupon_code` en `OrderStatusUpdate` para aplicar un cupón al momento del pago (no solo en la creación de la orden)
 - Modelo `Coupon` con soporte de descuento por porcentaje y monto fijo, límite de usos, fecha de vencimiento y alcance por sucursal o global
 - Endpoints CRUD de cupones en `/branches/{branch_id}/coupons` (requiere rol `manager` o superior)
 - Endpoint `GET /branches/{branch_id}/coupons/validate` para validar un cupón antes de aplicarlo a una orden

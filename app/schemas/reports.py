@@ -99,6 +99,15 @@ class GlobalWeekday(BaseModel):
     by_branch: list[BranchWeekday]
 
 
+class ProductRankingPoint(BaseModel):
+    rank: int
+    product_id: int
+    product_name: str
+    total_quantity: int
+    total_revenue: float
+    order_count: int        # en cuántas órdenes distintas apareció
+
+
 class MonthlyTrendPoint(BaseModel):
     year: int
     month: int
