@@ -6,9 +6,9 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.base import Shift
-from app.models.inventory import Product
+from app.models.inventory import Category, Product
 from app.models.sales import Order, OrderItem
-from app.schemas.reports import DailySalesPoint, LastShiftSummary, MonthlyTrendPoint, PeriodAverages, ProductRankingPoint, WeekdaySales
+from app.schemas.reports import CoProductPoint, DailySalesPoint, LastShiftSummary, MonthlyTrendPoint, PeriodAverages, ProductRankingPoint, WeekdaySales
 
 WEEKDAY_NAMES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 MONTH_LABELS = ["", "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
@@ -134,7 +134,7 @@ async def get_sales_by_weekday(branch_id: int, days: int, session: AsyncSession)
 
 
 async def get_top_products(
-    branch_id: int, days: int, limit: int, session: AsyncSession
+    branch_id: int, days: int, limit: int, session: AsyncSession, co_limit: int = 5
 ) -> list[ProductRankingPoint]:
     since = datetime.utcnow() - timedelta(days=days)
 
@@ -157,29 +157,61 @@ async def get_top_products(
 
     # Agregación en memoria: {product_id: {quantity, revenue, order_ids}}
     agg: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "revenue": 0.0, "orders": set()})
+    # Mapa inverso para co-compra: {order_id: {product_ids}}
+    order_to_products: dict[int, set[int]] = defaultdict(set)
     for item in items:
         agg[item.product_id]["quantity"] += item.quantity
         agg[item.product_id]["revenue"] += item.quantity * item.price
         agg[item.product_id]["orders"].add(item.order_id)
+        order_to_products[item.order_id].add(item.product_id)
 
-    # Cargar nombres de productos en una sola pasada
-    product_ids = list(agg.keys())
-    products_result = await session.exec(select(Product).where(Product.id.in_(product_ids)))
-    product_names = {p.id: p.name for p in products_result.all()}
+    # Cargar productos y categorías en dos batches
+    products_result = await session.exec(select(Product).where(Product.id.in_(list(agg.keys()))))
+    products = {p.id: p for p in products_result.all()}
+
+    category_ids = {p.category_id for p in products.values() if p.category_id}
+    categories_result = await session.exec(select(Category).where(Category.id.in_(list(category_ids))))
+    category_names = {c.id: c.name for c in categories_result.all()}
 
     ranking = sorted(agg.items(), key=lambda x: x[1]["quantity"], reverse=True)[:limit]
 
-    return [
-        ProductRankingPoint(
-            rank=i + 1,
-            product_id=pid,
-            product_name=product_names.get(pid, "—"),
-            total_quantity=data["quantity"],
-            total_revenue=round(data["revenue"], 2),
-            order_count=len(data["orders"]),
+    result = []
+    for i, (pid, data) in enumerate(ranking):
+        order_count = len(data["orders"])
+        product = products.get(pid)
+
+        # Contar con qué otros productos apareció este producto en la misma orden
+        co_counts: dict[int, int] = defaultdict(int)
+        for oid in data["orders"]:
+            for other_pid in order_to_products[oid]:
+                if other_pid != pid:
+                    co_counts[other_pid] += 1
+
+        top_co = sorted(co_counts.items(), key=lambda x: x[1], reverse=True)[:co_limit]
+
+        result.append(
+            ProductRankingPoint(
+                rank=i + 1,
+                product_id=pid,
+                product_name=product.name if product else "—",
+                category_id=product.category_id if product else None,
+                category_name=category_names.get(product.category_id) if product else None,
+                total_quantity=data["quantity"],
+                total_revenue=round(data["revenue"], 2),
+                order_count=order_count,
+                frequently_bought_with=[
+                    CoProductPoint(
+                        product_id=co_pid,
+                        product_name=products[co_pid].name if co_pid in products else "—",
+                        co_order_count=count,
+                        percentage=round(count / order_count * 100, 1) if order_count else 0.0,
+                    )
+                    for co_pid, count in top_co
+                ],
+            )
         )
-        for i, (pid, data) in enumerate(ranking)
-    ]
+
+    return result
 
 
 async def get_monthly_sales_trend(branch_id: int, months: int, session: AsyncSession) -> list[MonthlyTrendPoint]:

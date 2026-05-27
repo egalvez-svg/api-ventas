@@ -99,13 +99,23 @@ class GlobalWeekday(BaseModel):
     by_branch: list[BranchWeekday]
 
 
+class CoProductPoint(BaseModel):
+    product_id: int
+    product_name: str
+    co_order_count: int     # órdenes donde aparecieron juntos
+    percentage: float       # co_order_count / órdenes del producto principal * 100
+
+
 class ProductRankingPoint(BaseModel):
     rank: int
     product_id: int
     product_name: str
+    category_id: int | None
+    category_name: str | None
     total_quantity: int
     total_revenue: float
-    order_count: int        # en cuántas órdenes distintas apareció
+    order_count: int                            # en cuántas órdenes distintas apareció
+    frequently_bought_with: list[CoProductPoint] = []
 
 
 class MonthlyTrendPoint(BaseModel):

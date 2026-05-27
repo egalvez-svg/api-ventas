@@ -60,9 +60,10 @@ async def top_products(
     _: ManagerDep,
     days: int = Query(default=30, ge=1, le=365, description="Ventana de análisis en días"),
     limit: int = Query(default=10, ge=1, le=50, description="Cantidad de productos a mostrar"),
+    co_limit: int = Query(default=5, ge=0, le=20, description="Productos acompañantes a mostrar por cada producto"),
 ):
     """Ranking de productos más vendidos por cantidad, dentro del período indicado."""
-    return await get_top_products(branch_id, days, limit, session)
+    return await get_top_products(branch_id, days, limit, session, co_limit)
 
 
 @router.get("/monthly-trend", response_model=list[MonthlyTrendPoint])
