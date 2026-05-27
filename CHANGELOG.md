@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Campo `waiter_name` en `OrderRead` con el nombre completo del mesero que tomó la orden, visible en vistas de mesa y cocina
 - Campos `category_id` y `category_name` en `ProductRankingPoint` del endpoint de top-products
 - Campo `frequently_bought_with` en `ProductRankingPoint` con los productos más comprados junto a cada producto del top (análisis de co-compra); configurable vía parámetro `co_limit` en el endpoint
 - Datos completos del cupón (`code`, `description`, `discount_type`, `discount_value`) en facturas de orden y de mesa, reemplazando el campo `coupon_id` crudo

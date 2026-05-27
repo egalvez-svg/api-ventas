@@ -56,11 +56,13 @@ class OrderService:
                     extras=extras,
                 )
             )
+        waiter = await session.get(User, order.user_id)
         return OrderRead(
             id=order.id,
             branch_id=order.branch_id,
             table_id=order.table_id,
             user_id=order.user_id,
+            waiter_name=waiter.full_name if waiter else "—",
             status=order.status,
             total=order.total,
             discount=order.discount,
