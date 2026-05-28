@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Query
 
 from app.core.deps import ManagerDep, SessionDep
-from app.schemas.reports import DailySalesPoint, LastShiftSummary, MonthlyTrendPoint, PeriodAverages, ProductRankingPoint, WeekdaySales
+from app.schemas.reports import DailySalesPoint, LastShiftSummary, MonthlyTrendPoint, PaymentMethodPoint, PeriodAverages, ProductRankingPoint, WeekdaySales
 from app.services.report_service import (
     get_last_shift_summary,
     get_monthly_sales_trend,
+    get_payment_method_breakdown,
     get_period_averages,
     get_sales_by_weekday,
     get_sales_trend,
@@ -64,6 +65,17 @@ async def top_products(
 ):
     """Ranking de productos más vendidos por cantidad, dentro del período indicado."""
     return await get_top_products(branch_id, days, limit, session, co_limit)
+
+
+@router.get("/payment-methods", response_model=list[PaymentMethodPoint])
+async def payment_method_breakdown(
+    branch_id: int,
+    session: SessionDep,
+    _: ManagerDep,
+    days: int = Query(default=30, ge=1, le=365, description="Ventana de análisis en días"),
+):
+    """Distribución de ventas por método de pago (efectivo, tarjeta, transferencia)."""
+    return await get_payment_method_breakdown(branch_id, days, session)
 
 
 @router.get("/monthly-trend", response_model=list[MonthlyTrendPoint])

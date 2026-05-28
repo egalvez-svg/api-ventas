@@ -138,3 +138,22 @@ class BranchMonthlyTrend(BaseModel):
 class GlobalMonthlyTrend(BaseModel):
     global_trend: list[MonthlyTrendPoint]
     by_branch: list[BranchMonthlyTrend]
+
+
+class PaymentMethodPoint(BaseModel):
+    method: str         # cash, card, transfer
+    label: str          # Efectivo, Tarjeta, Transferencia
+    total: float
+    count: int
+    percentage: float   # % sobre el total recaudado en el período
+
+
+class BranchPaymentMethods(BaseModel):
+    branch_id: int
+    branch_name: str
+    methods: list[PaymentMethodPoint]
+
+
+class GlobalPaymentMethods(BaseModel):
+    global_methods: list[PaymentMethodPoint]
+    by_branch: list[BranchPaymentMethods]

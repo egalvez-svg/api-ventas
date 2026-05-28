@@ -5,20 +5,23 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.base import Branch, Shift
-from app.models.sales import Order
+from app.models.sales import Order, Payment
 from app.schemas.reports import (
     BranchAverages,
     BranchLastShift,
     BranchMonthlyTrend,
+    BranchPaymentMethods,
     BranchTrend,
     BranchWeekday,
     DailySalesPoint,
     GlobalAverages,
     GlobalLastShift,
     GlobalMonthlyTrend,
+    GlobalPaymentMethods,
     GlobalTrend,
     GlobalWeekday,
     MonthlyTrendPoint,
+    PaymentMethodPoint,
     WeekdaySales,
 )
 
@@ -284,5 +287,62 @@ async def get_global_monthly_trend(months: int, session: AsyncSession) -> Global
 
     return GlobalMonthlyTrend(
         global_trend=build_monthly(global_data),
+        by_branch=by_branch,
+    )
+
+
+METHOD_LABELS = {"cash": "Efectivo", "card": "Tarjeta", "transfer": "Transferencia"}
+
+
+async def get_global_payment_methods(days: int, session: AsyncSession) -> GlobalPaymentMethods:
+    branches = await _get_active_branches(session)
+    since = datetime.utcnow() - timedelta(days=days)
+
+    orders_result = await session.exec(
+        select(Order).where(Order.status == "paid", Order.created_at >= since)
+    )
+    all_orders = orders_result.all()
+    order_ids = [o.id for o in all_orders]
+    order_branch = {o.id: o.branch_id for o in all_orders}
+
+    global_agg: dict[str, dict] = defaultdict(lambda: {"total": 0.0, "count": 0})
+    branch_agg: dict[int, dict[str, dict]] = defaultdict(
+        lambda: defaultdict(lambda: {"total": 0.0, "count": 0})
+    )
+
+    if order_ids:
+        payments_result = await session.exec(
+            select(Payment).where(Payment.order_id.in_(order_ids))  # type: ignore[attr-defined]
+        )
+        for p in payments_result.all():
+            global_agg[p.method]["total"] += p.amount
+            global_agg[p.method]["count"] += 1
+            branch_agg[order_branch[p.order_id]][p.method]["total"] += p.amount
+            branch_agg[order_branch[p.order_id]][p.method]["count"] += 1
+
+    def build_methods(agg: dict[str, dict]) -> list[PaymentMethodPoint]:
+        grand_total = sum(d["total"] for d in agg.values())
+        return [
+            PaymentMethodPoint(
+                method=method,
+                label=METHOD_LABELS.get(method, method),
+                total=round(agg[method]["total"], 2),
+                count=agg[method]["count"],
+                percentage=round(agg[method]["total"] / grand_total * 100, 1) if grand_total else 0.0,
+            )
+            for method in METHOD_LABELS
+        ]
+
+    by_branch = [
+        BranchPaymentMethods(
+            branch_id=branch.id,
+            branch_name=branch.name,
+            methods=build_methods(branch_agg.get(branch.id, {})),
+        )
+        for branch in branches
+    ]
+
+    return GlobalPaymentMethods(
+        global_methods=build_methods(global_agg),
         by_branch=by_branch,
     )

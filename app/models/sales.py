@@ -26,6 +26,7 @@ class Order(SQLModel, table=True):
     items: List["OrderItem"] = Relationship(back_populates="order", sa_relationship_kwargs={"lazy": "raise"})
     shift: Optional["Shift"] = Relationship(back_populates="orders", sa_relationship_kwargs={"lazy": "raise"})
     coupon: Optional["Coupon"] = Relationship(back_populates="orders", sa_relationship_kwargs={"lazy": "raise"})
+    payments: List["Payment"] = Relationship(back_populates="order", sa_relationship_kwargs={"lazy": "raise"})
 
 
 class OrderItem(SQLModel, table=True):
@@ -64,3 +65,13 @@ class Coupon(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     orders: List[Order] = Relationship(back_populates="coupon", sa_relationship_kwargs={"lazy": "raise"})
+
+
+class Payment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    order_id: int = Field(foreign_key="order.id")
+    method: str  # cash, card, transfer
+    amount: float
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    order: Order = Relationship(back_populates="payments", sa_relationship_kwargs={"lazy": "raise"})

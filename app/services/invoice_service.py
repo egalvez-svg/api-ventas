@@ -4,7 +4,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.inventory import Product
-from app.models.sales import Coupon, Order, OrderItem, OrderItemExtra, Table
+from app.models.sales import Coupon, Order, OrderItem, OrderItemExtra, Payment, Table
 
 
 class InvoiceService:
@@ -47,6 +47,14 @@ class InvoiceService:
                     "discount_value": coupon.discount_value,
                 }
 
+        payments_result = await session.exec(
+            select(Payment).where(Payment.order_id == order.id)
+        )
+        payments = [
+            {"method": p.method, "amount": p.amount, "created_at": p.created_at}
+            for p in payments_result.all()
+        ]
+
         subtotal = sum(i["subtotal"] for i in invoice_items)
         return {
             "order_id": order.id,
@@ -57,6 +65,7 @@ class InvoiceService:
             "coupon": coupon_info,
             "tip": order.tip,
             "total": order.total + order.tip,
+            "payments": payments,
             "items": invoice_items,
         }
 
