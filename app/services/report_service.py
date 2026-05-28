@@ -7,8 +7,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.base import Shift
 from app.models.inventory import Category, Product
-from app.models.sales import Order, OrderItem
-from app.schemas.reports import CoProductPoint, DailySalesPoint, LastShiftSummary, MonthlyTrendPoint, PeriodAverages, ProductRankingPoint, WeekdaySales
+from app.models.sales import Order, OrderItem, Payment
+from app.schemas.reports import CoProductPoint, DailySalesPoint, LastShiftSummary, MonthlyTrendPoint, PaymentMethodPoint, PeriodAverages, ProductRankingPoint, WeekdaySales
 
 WEEKDAY_NAMES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 MONTH_LABELS = ["", "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
@@ -212,6 +212,51 @@ async def get_top_products(
         )
 
     return result
+
+
+METHOD_LABELS = {"cash": "Efectivo", "card": "Tarjeta", "transfer": "Transferencia"}
+
+
+async def get_payment_method_breakdown(branch_id: int, days: int, session: AsyncSession) -> list[PaymentMethodPoint]:
+    since = datetime.utcnow() - timedelta(days=days)
+
+    orders_result = await session.exec(
+        select(Order).where(
+            Order.branch_id == branch_id,
+            Order.status == "paid",
+            Order.created_at >= since,
+        )
+    )
+    order_ids = [o.id for o in orders_result.all()]
+
+    if not order_ids:
+        return [
+            PaymentMethodPoint(method=m, label=l, total=0.0, count=0, percentage=0.0)
+            for m, l in METHOD_LABELS.items()
+        ]
+
+    payments_result = await session.exec(
+        select(Payment).where(Payment.order_id.in_(order_ids))  # type: ignore[attr-defined]
+    )
+    payments = payments_result.all()
+
+    by_method: dict[str, dict] = defaultdict(lambda: {"total": 0.0, "count": 0})
+    for p in payments:
+        by_method[p.method]["total"] += p.amount
+        by_method[p.method]["count"] += 1
+
+    grand_total = sum(d["total"] for d in by_method.values())
+
+    return [
+        PaymentMethodPoint(
+            method=method,
+            label=METHOD_LABELS.get(method, method),
+            total=round(by_method[method]["total"], 2),
+            count=by_method[method]["count"],
+            percentage=round(by_method[method]["total"] / grand_total * 100, 1) if grand_total else 0.0,
+        )
+        for method in METHOD_LABELS
+    ]
 
 
 async def get_monthly_sales_trend(branch_id: int, months: int, session: AsyncSession) -> list[MonthlyTrendPoint]:

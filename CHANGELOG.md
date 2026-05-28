@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Endpoint `GET /branches/{branch_id}/reports/payment-methods` con distribución de ventas por método de pago (efectivo, tarjeta, transferencia), incluyendo total, cantidad de transacciones y porcentaje sobre el período
+- Endpoint admin `GET /reports/payment-methods` con la misma distribución consolidada globalmente y desglosada por sucursal
+- Modelo `Payment` para registrar métodos de pago (efectivo, tarjeta, transferencia) asociados a una orden
+- Endpoint `POST /branches/{branch_id}/orders/{order_id}/payments` para pagar una orden con uno o más métodos de pago
+- Validación de montos: el total de los pagos debe cubrir el valor de la orden más propina
+- Soporte de pagos mixtos en el pago de mesa (`POST /tables/{table_id}/pay`) vía campo `payments`
+- Campo `payments` en `OrderRead` con el detalle de los pagos realizados
+- Campo `payments` en la pre-boleta (`GET /orders/{order_id}/invoice`) con el detalle de los métodos de pago
+- Migración Alembic `31ba31a40681` — crea la tabla `payment`
 - Campo `waiter_name` en `OrderRead` con el nombre completo del mesero que tomó la orden, visible en vistas de mesa y cocina
 - Campos `category_id` y `category_name` en `ProductRankingPoint` del endpoint de top-products
 - Campo `frequently_bought_with` en `ProductRankingPoint` con los productos más comprados junto a cada producto del top (análisis de co-compra); configurable vía parámetro `co_limit` en el endpoint

@@ -3,7 +3,7 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, Query
 
 from app.core.deps import CurrentUser, KitchenDep, SessionDep, WaiterDep
-from app.schemas.sales import OrderCreate, OrderRead, OrderStatusUpdate, TableInvoiceRead, TablePayRequest
+from app.schemas.sales import OrderCreate, OrderPayRequest, OrderRead, OrderStatusUpdate, TableInvoiceRead, TablePayRequest
 from app.services.order_service import order_service
 
 router = APIRouter(prefix="/branches/{branch_id}/orders", tags=["orders"])
@@ -66,8 +66,19 @@ async def get_table_invoice(
     return await invoice_service.generate_table_invoice(session, branch_id, table_id)
 
 
+@router.post("/{order_id}/payments", response_model=OrderRead)
+async def pay_order(
+    branch_id: int,
+    order_id: int,
+    data: OrderPayRequest,
+    session: SessionDep,
+    user: WaiterDep,
+):
+    return await order_service.pay_order(session, branch_id, order_id, data, user)
+
+
 @table_router.post("/{table_id}/pay", response_model=TableInvoiceRead)
 async def pay_table(
     branch_id: int, table_id: int, data: TablePayRequest, session: SessionDep, user: WaiterDep
 ):
-    return await order_service.pay_table_orders(session, branch_id, table_id, data.tip, user)
+    return await order_service.pay_table_orders(session, branch_id, table_id, data.payments, data.tip, user)

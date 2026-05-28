@@ -3,6 +3,19 @@ from datetime import datetime
 from sqlmodel import SQLModel
 
 
+class PaymentCreate(SQLModel):
+    method: str  # cash, card, transfer
+    amount: float
+
+
+class PaymentRead(SQLModel):
+    id: int
+    order_id: int
+    method: str
+    amount: float
+    created_at: datetime
+
+
 class TableCreate(SQLModel):
     number: str
     status: str = "available"
@@ -66,6 +79,7 @@ class OrderRead(SQLModel):
     tip: float = 0.0
     created_at: datetime
     items: list[OrderItemRead] = []
+    payments: list[PaymentRead] = []
 
 
 class OrderStatusUpdate(SQLModel):
@@ -74,7 +88,14 @@ class OrderStatusUpdate(SQLModel):
     coupon_code: Optional[str] = None
 
 
+class OrderPayRequest(SQLModel):
+    payments: list[PaymentCreate]
+    tip: float = 0.0
+    coupon_code: Optional[str] = None
+
+
 class TablePayRequest(SQLModel):
+    payments: list[PaymentCreate]
     tip: float = 0.0
 
 

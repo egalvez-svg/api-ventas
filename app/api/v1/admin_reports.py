@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Query
 
 from app.core.deps import AdminDep, SessionDep
-from app.schemas.reports import GlobalAverages, GlobalLastShift, GlobalMonthlyTrend, GlobalTrend, GlobalWeekday
+from app.schemas.reports import GlobalAverages, GlobalLastShift, GlobalMonthlyTrend, GlobalPaymentMethods, GlobalTrend, GlobalWeekday
 from app.services.admin_report_service import (
     get_global_averages,
     get_global_by_weekday,
     get_global_last_shift,
     get_global_monthly_trend,
+    get_global_payment_methods,
     get_global_trend,
 )
 
@@ -47,6 +48,16 @@ async def global_by_weekday(
 ):
     """Distribución por día de semana por sucursal + distribución global consolidada."""
     return await get_global_by_weekday(days, session)
+
+
+@router.get("/payment-methods", response_model=GlobalPaymentMethods)
+async def global_payment_methods(
+    session: SessionDep,
+    _: AdminDep,
+    days: int = Query(default=30, ge=1, le=365, description="Ventana de análisis en días"),
+):
+    """Distribución global de ventas por método de pago, con desglose por sucursal."""
+    return await get_global_payment_methods(days, session)
 
 
 @router.get("/monthly-trend", response_model=GlobalMonthlyTrend)
